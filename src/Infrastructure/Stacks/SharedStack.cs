@@ -1,9 +1,9 @@
-using Amazon.CDK;
-using Amazon.CDK.AWS.APIGatewayv2;
-using Infrastructure.Props;
-
 namespace Infrastructure.Stacks
 {
+    using Amazon.CDK;
+    using Amazon.CDK.AWS.APIGatewayv2;
+    using Infrastructure.Props;
+
     public class SharedStack : Stack
     {
         public SharedProps SharedProps { get; }
@@ -18,7 +18,7 @@ namespace Infrastructure.Stacks
 
             props.SharedApi = api;
 
-            SharedProps = props;
+            this.SharedProps = props;
         }
     }
 }

@@ -1,17 +1,16 @@
 namespace TimestreamHandler.Models
 {
-    using System;
     using System.Collections.Generic;
     using Amazon.TimestreamWrite.Model;
 
     public class Response
     {
-        public List<Record> Data { get; set; }
+        public List<Record> Data { get; set; } = null;
 
         public bool Success { get; set; } = false;
 
-        public string Message { get; set; }
+        public string Message { get; set; } = null;
 
-        public Exception Exception { get; set; } = null;
+        public string StackTrace { get; set; } = null;
     }
 }

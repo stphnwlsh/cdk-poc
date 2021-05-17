@@ -1,16 +1,13 @@
-using System;
-using System.Threading;
-using Amazon.CDK;
-using Amazon.CDK.AWS.APIGatewayv2;
-using Amazon.CDK.AWS.APIGatewayv2.Integrations;
-using Amazon.CDK.AWS.IAM;
-using Amazon.CDK.AWS.Lambda;
-using Amazon.CDK.AWS.Timestream;
-using Infrastructure.Props;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-
 namespace Infrastructure.Stacks
 {
+    using Amazon.CDK;
+    using Amazon.CDK.AWS.APIGatewayv2;
+    using Amazon.CDK.AWS.APIGatewayv2.Integrations;
+    using Amazon.CDK.AWS.IAM;
+    using Amazon.CDK.AWS.Lambda;
+    using Amazon.CDK.AWS.Timestream;
+    using Infrastructure.Props;
+
     public class TimestreamStack : Stack
     {
         internal TimestreamStack(Construct scope, string id, SharedProps props = null) : base(scope, id, props)
@@ -54,7 +51,7 @@ namespace Infrastructure.Stacks
             });
 
             // Timestream Lambda API Route //
-            props.SharedApi.AddRoutes(new AddRoutesOptions()
+            _ = props.SharedApi.AddRoutes(new AddRoutesOptions()
             {
                 Path = "/timestream",
                 Integration = lambdaProxyIntegration,

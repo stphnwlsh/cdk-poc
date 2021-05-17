@@ -1,3 +1,5 @@
+// Assembly attribute to enable the Lambda function's JSON input to be converted into a .NET class.
+[assembly: Amazon.Lambda.Core.LambdaSerializer(typeof(Amazon.Lambda.Serialization.SystemTextJson.DefaultLambdaJsonSerializer))]
 namespace TimestreamHandler
 {
     using System;
@@ -12,6 +14,7 @@ namespace TimestreamHandler
     using Amazon.TimestreamWrite.Model;
     using TimestreamHandler.Models;
 
+
     public class Function
     {
         /// <summary>
@@ -20,16 +23,17 @@ namespace TimestreamHandler
         /// <param name="request"></param>
         /// <param name="context"></param>
         /// <returns></returns>
-        public async Task<Response> FunctionHandler(APIGatewayProxyRequest request, ILambdaContext context)
+        public async Task<Response> FunctionHandler(APIGatewayProxyRequest input, ILambdaContext context)
         {
-            LambdaLogger.Log($"Function Started: {context.FunctionName}");
-
+            var response = new Response();
             var records = new List<Record>();
             var dimensions = new List<Dimension>();
 
             try
             {
-                var input = JsonSerializer.Deserialize<Request>(request.Body);
+                LambdaLogger.Log($"Function Started: {context.FunctionName}");
+
+                var request = JsonSerializer.Deserialize<Request>(input.Body);
 
                 dimensions.Add(new Dimension
                 {
@@ -37,74 +41,65 @@ namespace TimestreamHandler
                     Value = "Project Shield"
                 });
 
-                foreach (var stepData in input.Values)
+                foreach (var stepData in request.Values)
                 {
-                    var dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(stepData.Time);
-                    var time = dateTimeOffset.ToUnixTimeMilliseconds().ToString();
-
                     var step = new Record
                     {
                         Dimensions = dimensions,
                         MeasureName = "steps",
                         MeasureValue = stepData.Steps.ToString(),
                         MeasureValueType = MeasureValueType.DOUBLE,
-                        Time = time
+                        Time = stepData.Time.ToString(),
+                        TimeUnit = TimeUnit.SECONDS
                     };
 
                     records.Add(step);
                 }
 
-                var writeClient = new AmazonTimestreamWriteClient(new AmazonTimestreamWriteConfig
+                var client = new AmazonTimestreamWriteClient(new AmazonTimestreamWriteConfig
                 {
                     RegionEndpoint = RegionEndpoint.USWest2,
                     Timeout = TimeSpan.FromSeconds(20),
                     MaxErrorRetry = 10
                 });
 
-                var response = await writeClient.WriteRecordsAsync(new WriteRecordsRequest
+                _ = await client.WriteRecordsAsync(new WriteRecordsRequest
                 {
                     DatabaseName = "ProjectShieldTimestreamDatabase",
                     TableName = "ProjectShieldTimestreamTable",
                     Records = records
                 });
 
-                return new Response
-                {
-                    Data = records,
-                    Success = true
-                };
+                response.Data = records;
+                response.Success = true;
             }
             catch (RejectedRecordsException ex)
             {
+                var rejectedRecords = $"Rejected Records: {string.Join(",", ex.RejectedRecords.Select(r => $"{r.RecordIndex}:{r.Reason}"))}";
+
                 LambdaLogger.Log($"RejectedRecordsException: {ex.Message}");
+                LambdaLogger.Log($"RejectedRecordsException: {rejectedRecords}");
 
-                foreach (var rejectedRecord in ex.RejectedRecords)
-                {
-                    LambdaLogger.Log($"RejectedRecordsException : RejectedRecordIndex {rejectedRecord.RecordIndex} : {rejectedRecord.Reason}");
-                }
-
-                return new Response
-                {
-                    Data = records,
-                    Message = $"Rejected Records Indexes: {string.Join(",", ex.RejectedRecords.Select(r => r.RecordIndex))}",
-                    Exception = ex
-                };
+                response.Data = records;
+                response.Success = false;
+                response.Message = $"{rejectedRecords}{Environment.NewLine}{ex.Message}";
+                response.StackTrace = ex.StackTrace;
             }
             catch (Exception ex)
             {
                 LambdaLogger.Log($"Exception: {ex.Message}");
 
-                return new Response
-                {
-                    Data = records,
-                    Message = ex.Message,
-                    Exception = ex
-                };
+                response.Data = records;
+                response.Success = false;
+                response.Message = ex.Message;
+                response.StackTrace = ex.StackTrace;
             }
             finally
             {
                 LambdaLogger.Log($"Function Finished: {context.FunctionName}");
             }
+
+            return response;
         }
     }
 }
